@@ -16,7 +16,7 @@ void outputGainTest(BQ76952& bms)
 
     const uint16_t normal_voltage = bms.getCellVoltage(1);
 
-    std::cout << "Cell Voltage before gain " << normal_voltage << ". After gain " << gain_voltage << '\n';
+    std::cout << "The cell voltage before applying the gain: " << normal_voltage << ". After applying the gain: " << gain_voltage << '\n';
 }
 
 void outputDeviceID(BQ76952& bms)
@@ -25,9 +25,32 @@ void outputDeviceID(BQ76952& bms)
     const uint16_t firmware_version = bms.getFWVersion();
     const uint16_t hardware_version = bms.getHWVersion();
 
-    std::cout << "Device number " << device_number << '\n';
-    std::cout << "Firmware version " << firmware_version << '\n';
-    std::cout << "Hardware version " << hardware_version << '\n';
+    std::cout << "Device number 0x" << std::hex << device_number << '\n';
+    std::cout << "Firmware version 0x" << std::hex <<  firmware_version << '\n';
+    std::cout << "Hardware version 0x" << std::hex <<  hardware_version << '\n';
+}
+
+
+void outputVoltageTest(BQ76952& bms)
+{
+    const std::vector<uint16_t> voltages = bms.getAllVoltages();
+    for(uint32_t i = 0; i < voltages.size(); i++)
+    {
+        if(i < 16)
+            std::cout << "Cell Voltage" << i+1 << ":" << voltages[i] << '\n';     
+        else if(i == 16)
+            std::cout << "Stack Voltage: " << voltages[i] << '\n';
+        else if(i == 17)
+            std::cout << "Pack Voltage: " << voltages[i] << '\n';
+        else
+            std::cout << "LD Pin Voltage " << voltages[i] << '\n'; 
+    }
+}
+
+void outputInternalTemperature(BQ76952& bms)
+{
+    const uint16_t temperature = bms.getThermistorTemp(INT_TEMP);
+    std::cout << "Raw internal temperature " << temperature << '\n'; 
 }
 
 
@@ -38,26 +61,8 @@ int main(void)
 
     outputDeviceID(bms);
     outputGainTest(bms);
-
-
-    //bms.setVoltageGain(1, 20000); 
-
-    // std::vector<uint16_t> voltages = bms.getAllVoltages(); 
-
-    // for(uint32_t i = 0; i < voltages.size(); i++)
-    //     std::cout << "Voltage " << i+1 << ": " <<  voltages[i] << '\n';
-
-    // bms.setVoltageGain(1, 0);  
-    
-
-    // while(true)
-    // {
-    //     const uint16_t cell_voltage = bms.getCellVoltage(1);
-    //     const uint16_t pack_voltage = bms.getPackVoltage();
-    //     const uint16_t ld_voltage = bms.getLDVoltage();
-    //     const uint16_t thermistor_temp = bms.getThermistorTemp(INT_TEMP);
-    //     std::cout << cell_voltage << " " << pack_voltage << " " << ld_voltage << " " << thermistor_temp << '\n';
-    // }
+    outputVoltageTest(bms);
+    outputInternalTemperature(bms);
 
     return 0;
 }

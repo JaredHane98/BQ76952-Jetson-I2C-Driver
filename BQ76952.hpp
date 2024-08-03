@@ -378,9 +378,28 @@ private:
         return ioctl(m_bus, I2C_RDWR, (uint64_t)&ioctl_data) != -1;
     }
 
-    
+    bool readSubcommand(uint16_t addr, uint8_t* value, const uint16_t len)
+    {
+        uint8_t current_attempt = 0, num_attempts = 10, reply_length;
+        uint16_t reply_command;
 
+        if(!writeToDevice(BQ76952_CMD_DIR_SUBCMD_LOW, addr))
+            return false;
+        
+        while(current_attempt < num_attempts)
+        {
+            readDeviceMemory(BQ76952_CMD_DIR_SUBCMD_LOW, reinterpret_cast<uint8_t*>(&reply_command), sizeof(uint16_t));
 
+            if(reply_command != 0xFF) // data is ready
+            {
+                readDeviceMemory(BQ76952_TRANSFER_BUFFER_LENGTH_ADDR, &reply_length, sizeof(uint8_t));
+                readDeviceMemory(BQ76952_TRANSFER_BUFFER_START_ADDR, value, len);
+                return true;
+            }
+            current_attempt++;
+        }
+        return false;
+    }
     template<typename T> 
     bool writeDeviceMemory(const uint16_t addr, const T data)
     {
@@ -420,7 +439,6 @@ private:
     template<typename T>
     bool writeDeviceMemoryImpl(const uint16_t addr, const T value)
     {
-        
         if(!writeDeviceMemory(addr, value))
         {
             std::cout << "Failed to write to device memory. Errno: " << getErrorMessage() << '\n';
@@ -624,7 +642,11 @@ public:
         uint16_t voltage;
         for(int16_t i = 0; i < BQ76952_VOLTAGE_COUNT; i++)
         {
-            readDeviceMemory(BQ76952_CELL_VOLTAGE_START_ADDR + i * sizeof(uint16_t), reinterpret_cast<uint8_t*>(&voltage), sizeof(uint16_t));
+            if(!readDeviceMemory(BQ76952_CELL_VOLTAGE_START_ADDR + i * sizeof(uint16_t), reinterpret_cast<uint8_t*>(&voltage), sizeof(uint16_t)))
+            {
+                voltages.clear();
+                break;
+            }
             voltages.push_back(voltage); 
         }
         return voltages;
@@ -635,25 +657,29 @@ public:
             return 0;
 
         uint16_t voltage; 
-        readDeviceMemory(uint8_t(BQ76952_CELL_VOLTAGE_START_ADDR + (index - 1) * sizeof(uint16_t)), reinterpret_cast<uint8_t*>(&voltage), sizeof(uint16_t));
+        if(!readDeviceMemory(uint8_t(BQ76952_CELL_VOLTAGE_START_ADDR + (index - 1) * sizeof(uint16_t)), reinterpret_cast<uint8_t*>(&voltage), sizeof(uint16_t)))
+            voltage = 0;
         return voltage; 
     }
     uint16_t getStackVoltage()
     {
         uint16_t voltage; 
-        readDeviceMemory(BQ76952_STACK_VOLTAGE_ADDR, reinterpret_cast<uint8_t*>(&voltage), sizeof(uint16_t));
+        if(!readDeviceMemory(BQ76952_STACK_VOLTAGE_ADDR, reinterpret_cast<uint8_t*>(&voltage), sizeof(uint16_t)))
+            voltage = 0;
         return voltage;
     }
     uint16_t getPackVoltage()
     {
         uint16_t voltage;
-        readDeviceMemory(BQ76952_PACK_VOLTAGE_ADDR, reinterpret_cast<uint8_t*>(&voltage), sizeof(uint16_t));
+        if(!readDeviceMemory(BQ76952_PACK_VOLTAGE_ADDR, reinterpret_cast<uint8_t*>(&voltage), sizeof(uint16_t)))
+            voltage = 0;
         return voltage;
     }
     uint16_t getLDVoltage()
     {
         uint16_t voltage; 
-        readDeviceMemory(BQ76952_LD_VOLTAGE_ADDR, reinterpret_cast<uint8_t*>(&voltage), sizeof(uint16_t));
+        if(!readDeviceMemory(BQ76952_LD_VOLTAGE_ADDR, reinterpret_cast<uint8_t*>(&voltage), sizeof(uint16_t)))
+            voltage = 0;
         return voltage;
     }
     uint16_t getThermistorTemp(const BQ76952Thermistor thermistor)
@@ -661,25 +687,29 @@ public:
         if(thermistor > DDSG_TEMP)
             return 0;
         uint16_t thermistor_value;
-        readDeviceMemory(BQ76952_START_TEMP_ADDR + thermistor * sizeof(uint16_t), reinterpret_cast<uint8_t*>(&thermistor_value), sizeof(uint16_t));
+        if(!readDeviceMemory(BQ76952_START_TEMP_ADDR + thermistor * sizeof(uint16_t), reinterpret_cast<uint8_t*>(&thermistor_value), sizeof(uint16_t)))
+            thermistor_value = 0;
         return thermistor_value; 
     }
     uint16_t getDeviceNumber()
     {
-        uint8_t device_number;
-        readDeviceMemory(BQ76952_DEVICE_NUMBER_ADDR, reinterpret_cast<uint8_t*>(&device_number), sizeof(uint8_t));
+        uint16_t device_number;
+        if(!readSubcommand(BQ76952_DEVICE_NUMBER_ADDR, reinterpret_cast<uint8_t*>(&device_number), sizeof(uint8_t)))
+            device_number = 0;
         return device_number;
     }
     uint16_t getFWVersion()
     {
-        uint8_t fw_version;
-        readDeviceMemory(BQ76952_FW_VERSION_ADDR, reinterpret_cast<uint8_t*>(&fw_version), sizeof(uint8_t));
+        uint16_t fw_version;
+        if(!readSubcommand(BQ76952_FW_VERSION_ADDR, reinterpret_cast<uint8_t*>(&fw_version), sizeof(uint8_t)))
+            fw_version = 0;
         return fw_version;
     }
     uint16_t getHWVersion()
     {
-        uint8_t hw_version;
-        readDeviceMemory(BQ76952_HW_VERSION_ADDR, reinterpret_cast<uint8_t*>(&hw_version), sizeof(uint8_t));
+        uint16_t hw_version;
+        if(!readSubcommand(BQ76952_HW_VERSION_ADDR, reinterpret_cast<uint8_t*>(&hw_version), sizeof(uint8_t)))
+            hw_version = 0;
         return hw_version;
     }
 };
