@@ -1,1 +1,3 @@
-A work in progress. There's a lot of commands and tests to write.
+A BQ76952 driver for Nvidia Jetson.
+
+Most of the useful commands have been implmented.
